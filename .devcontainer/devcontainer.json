@@ -1,0 +1,27 @@
+{
+	"name": "DotRaiser",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"args": { "USERNAME": "dev" }
+	},
+	"remoteUser": "dev",
+	"workspaceMount": "source=${localWorkspaceFolder},target=/home/dev/${localWorkspaceFolderBasename},type=bind",
+	"workspaceFolder": "/home/dev/${localWorkspaceFolderBasename}",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-vscode.cpptools",
+				"ms-vscode.cpptools-extension-pack",
+				"twxs.cmake",
+				"ms-vscode.cmake-tools",
+				"cschlosser.doxdocgen",
+				"GitHub.vscode-pull-request-github",
+				"DavidAnson.vscode-markdownlint",
+				"ms-vscode.hexeditor",
+				"mhutchie.git-graph",
+				"GitHub.copilot",
+				"GitHub.copilot-labs"
+			]
+		}
+	}
+}

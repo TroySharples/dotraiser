@@ -1,0 +1,2 @@
+Checks: 'clang-diagnostic-*,clang-analyzer-*,cppcoreguidelines-*,modernize-*,bugprone-*,performance-*,readability-*,-readability-identifier-length,-readability-braces-around-statements,-modernize-use-trailing-return-type,-modernize-use-nodiscard,-bugprone-easily-swappable-parameters'
+WarningsAsErrors: true
