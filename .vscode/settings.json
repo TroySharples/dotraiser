@@ -53,7 +53,12 @@
         "codecvt": "cpp",
         "iomanip": "cpp",
         "sstream": "cpp",
-        "filesystem": "cpp"
+        "filesystem": "cpp",
+        "any": "cpp",
+        "complex": "cpp",
+        "map": "cpp",
+        "set": "cpp",
+        "variant": "cpp"
     },
     "cmake.configureOnOpen": true,
     "C_Cpp.codeAnalysis.clangTidy.enabled": true,

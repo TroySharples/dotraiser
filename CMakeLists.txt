@@ -7,7 +7,7 @@ add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 
 add_subdirectory(src)
 
-if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     include(CTest)
     add_subdirectory(tests)
 endif()

@@ -1,0 +1,5 @@
+add_library(DotRaiser STATIC dotraiser.cpp)
+target_include_directories(DotRaiser PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include/dotraiser)
+target_compile_features(DotRaiser PUBLIC cxx_std_20)
+find_package(Eigen3 3.3 REQUIRED)
+target_link_libraries(DotRaiser PUBLIC Eigen3::Eigen)
