@@ -3,7 +3,7 @@
 #include <Eigen/Core>
 
 #include <filesystem>
-#include <vector>
+#include <unordered_map>
 #include <memory>
 #include <iostream>
 
@@ -20,114 +20,98 @@ struct node
 
 struct branch : node
 {
+    virtual ~branch() = default;
+    
+    virtual std::unique_ptr<node> make_child(const std::string& key) const = 0;
+
     std::istream& parse(std::istream& is) override;
     std::ostream& print(std::ostream& os) const override;
 
-    std::vector<std::unique_ptr<node>> children;
+    std::unordered_map<std::string, std::unique_ptr<node>> children;
+    node& operator[](const std::string& key);
 };
 
+template <typename T>
 struct leaf : node
 {
-    virtual ~leaf() = default;
-
-    virtual const char* get_label() const = 0;
-};
-
-struct camera : leaf
-{
-    Eigen::Vector3f position { 0, 0, 0 };
-    Eigen::Vector3f viewdir  { 1, 0, 0 };
-    Eigen::Vector3f updir    { 0, 1, 0 };
-    float aspectratio        { 1 };
-
-    static constexpr const char* LABEL = "camera";
-    const char* get_label() const override { return LABEL; }
+    leaf() = default;
+    leaf(T v) : value(v) {}
+    
+    T value;
+    operator T() { return value; }
 
     std::istream& parse(std::istream& is) override;
     std::ostream& print(std::ostream& os) const override;
 };
 
-struct ambient_light : leaf
+template <typename T>
+bool operator==(const dotraiser::leaf<T>& lhs, const T& rhs) { return lhs.value == rhs; }
+
+template <typename T>
+bool operator!=(const dotraiser::leaf<T>& lhs, const T& rhs) { return !(lhs == rhs); }
+
+struct camera : branch
 {
-    Eigen::Vector3f color { 0, 0, 0 };
+    Eigen::Vector3f get_position()    { return static_cast<leaf<Eigen::Vector3f>&>(operator[]("position")); };
+    Eigen::Vector3f get_viewdir()     { return static_cast<leaf<Eigen::Vector3f>&>(operator[]("viewdir")); };
+    Eigen::Vector3f get_updir()       { return static_cast<leaf<Eigen::Vector3f>&>(operator[]("updir")); };
+    float           get_aspectratio() { return static_cast<leaf<float>&>          (operator[]("aspectratio")); };
 
-    static constexpr const char* LABEL = "ambient_light";
-    const char* get_label() const override { return LABEL; }
-
-    std::istream& parse(std::istream& is) override;
-    std::ostream& print(std::ostream& os) const override;
+    virtual std::unique_ptr<node> make_child(const std::string& key) const override;
 };
 
-struct point_light : leaf
+struct ambient_light : branch
 {
-    Eigen::Vector3f position { 0, 0, 0 };
-    Eigen::Vector3f color    { 0, 0, 0 };
+    Eigen::Vector3f get_color() { return static_cast<leaf<Eigen::Vector3f>&>(operator[]("color")); };
 
-    static constexpr const char* LABEL = "point_light";
-    const char* get_label() const override { return LABEL; }
-
-    std::istream& parse(std::istream& is) override;
-    std::ostream& print(std::ostream& os) const override;
+    virtual std::unique_ptr<node> make_child(const std::string& key) const override;
 };
 
-struct directional_light : leaf
+struct point_light : branch
 {
-    Eigen::Vector3f direction { 1, 0, 0 };
-    Eigen::Vector3f color     { 0, 0, 0 };
+    Eigen::Vector3f get_position() { return static_cast<leaf<Eigen::Vector3f>&>(operator[]("position")); };
+    Eigen::Vector3f get_color()    { return static_cast<leaf<Eigen::Vector3f>&>(operator[]("color")); };
 
-    static constexpr const char* LABEL = "direction_light";
-    const char* get_label() const override { return LABEL; }
-
-    std::istream& parse(std::istream& is) override;
-    std::ostream& print(std::ostream& os) const override;
+    virtual std::unique_ptr<node> make_child(const std::string& key) const override;
 };
 
-struct material : leaf
+struct directional_light : branch
 {
-    Eigen::Vector3f emissive      { 0, 0, 0 };
-    Eigen::Vector3f ambient       { 0, 0, 0 };
-    Eigen::Vector3f specular      { 0, 0, 0 };
-    Eigen::Vector3f reflective    { 0, 0, 0 };
-    Eigen::Vector3f diffuse       { 0, 0, 0 };
-    Eigen::Vector3f transmissive  { 0, 0, 0 };
-    float shininess               { 0 };
-    float index                   { 0 };
-    std::string name              { "unspecified" };
+    Eigen::Vector3f get_direction() { return static_cast<leaf<Eigen::Vector3f>&>(operator[]("direction")); };
+    Eigen::Vector3f get_color()     { return static_cast<leaf<Eigen::Vector3f>&>(operator[]("color")); };
 
-    static constexpr const char* LABEL = "material";
-    const char* get_label() const override { return LABEL; }
-
-    std::istream& parse(std::istream& is) override;
-    std::ostream& print(std::ostream& os) const override;
+    virtual std::unique_ptr<node> make_child(const std::string& key) const override;
 };
 
-struct object : leaf
+struct material : branch
 {
-    Eigen::Vector3f translate { 0, 0, 0 };
-    float scale               { 1 };
-    Eigen::Matrix3f rotate    { Eigen::Matrix3f::Identity() };
-    Eigen::Matrix4f transform { Eigen::Matrix4f::Identity() };
+    Eigen::Vector3f get_emissive()     { return static_cast<leaf<Eigen::Vector3f>&>(operator[]("emissive")); };
+    Eigen::Vector3f get_ambient()      { return static_cast<leaf<Eigen::Vector3f>&>(operator[]("ambient")); };
+    Eigen::Vector3f get_specular()     { return static_cast<leaf<Eigen::Vector3f>&>(operator[]("specular")); };
+    Eigen::Vector3f get_reflective()   { return static_cast<leaf<Eigen::Vector3f>&>(operator[]("reflective")); };
+    Eigen::Vector3f get_diffuse()      { return static_cast<leaf<Eigen::Vector3f>&>(operator[]("diffuse")); };
+    Eigen::Vector3f get_transmissive() { return static_cast<leaf<Eigen::Vector3f>&>(operator[]("transmissive")); };
+    float           get_shininess()    { return static_cast<leaf<float>&>          (operator[]("shininess")); };
+    float           get_index()        { return static_cast<leaf<float>&>          (operator[]("index")); };
+    std::string     get_name()         { return static_cast<leaf<std::string>&>    (operator[]("name")); };
 
-    material mat;
-
-    std::istream& parse(std::istream& is) override;
-    std::ostream& print(std::ostream& os) const override;
+    
+    virtual std::unique_ptr<node> make_child(const std::string& key) const override;
 };
 
-struct polymesh : object
+struct polymesh : branch
 {
-    std::filesystem::path objfile;
+    std::string get_objfile() { return static_cast<leaf<std::string>&>(operator[]("objfile")); };
 
-    static constexpr const char* LABEL = "polymesh";
-    const char* get_label() const override { return LABEL; }
+    virtual std::unique_ptr<node> make_child(const std::string& key) const override;
+};
 
-    std::istream& parse(std::istream& is) override;
-    std::ostream& print(std::ostream& os) const override;
+struct objects : branch
+{
+    virtual std::unique_ptr<node> make_child(const std::string& key) const override;
 };
 
 }
 
 std::istream& operator>>(std::istream& is, dotraiser::node& n);
-std::istream& operator>>(std::istream& is, Eigen::Vector3f& v);
-
 std::ostream& operator<<(std::ostream& os, const dotraiser::node& n);

@@ -1,222 +1,170 @@
 #include "dotraiser.hpp"
 
-#include <unordered_map>
 #include <stdexcept>
 
 // Helper parser functions
 static std::istream& parse_charactor(std::istream& is, char c)
 {
-    char v;
+    char v = 0;
     is >> v;
     if (v != c)
         throw std::runtime_error("Missing charector: " + std::string(1, c));
     return is;
 }
 
-static std::istream& parse_escaped_string(std::istream& is, std::string& str)
-{
-    std::getline(is, str, '"');
-    std::getline(is, str, '"');
-    return is;
-}
-
 namespace dotraiser
 {
 
-// Map of node constructors
-using constructor_t = std::unique_ptr<node>(*)();
-using factory_t     = std::unordered_map<std::string, constructor_t>;
-static factory_t make_factory()
-{
-    factory_t ret;
-    ret[camera::LABEL] = []() { return static_cast<std::unique_ptr<node>>(std::make_unique<camera>()); };
-    return ret;
-}
-const static factory_t factory = make_factory();
-
-std::istream& camera::parse(std::istream& is)
+std::istream& branch::parse(std::istream& is)
 {
     parse_charactor(is, '{');
 
     std::string key;
     while (is >> key)
     {
-        if (key == "position")
-            is >> position;
-        else if (key == "viewdir")
-            is >> viewdir;
-        else if (key == "updir")
-            is >> updir;
-        else if (key == "aspectratio")
-            is >> aspectratio;
-        else if (key == "}")
+        if (key == "}")
             break;
-        else
-            throw std::runtime_error("Invalid camera key: " + key);
-        
+        parse_charactor(is, '=');
+
+        auto child = make_child(key);
+        child->parse(is);
+        children[key] = std::move(child);
+
         parse_charactor(is, ';');
     }
     return is;
 }
 
-std::ostream& camera::print(std::ostream& os) const
+std::ostream& branch::print(std::ostream& os) const
 {
-    return os << "{ "
-              << "position "    << position    << "; "
-              << "viewdir "     << viewdir     << "; "
-              << "updir "       << updir       << "; "
-              << "aspectratio " << aspectratio << "; "
-              << "}";
+    os << "{ ";
+    for (const auto& [key, child] : children)
+        os << key << " " << *child << "; ";
+    return os << "}";
 }
 
-std::istream& ambient_light::parse(std::istream& is)
+node& branch::operator[](const std::string& key)
 {
-    parse_charactor(is, '{');
-
-    std::string key;
-    while (is >> key)
-    {
-        if (key == "color")
-            is >> color;
-        else if (key == "}")
-            break;
-        else
-            throw std::runtime_error("Invalid ambient_light key: " + key);
-        
-        parse_charactor(is, ';');
-    }
-    return is;
-
+    if (children.find(key) == children.end())
+        throw std::runtime_error("Invalid key: " + key);
+    return *children[key];
 }
 
-std::ostream& ambient_light::print(std::ostream& os) const
+template <>
+std::istream& leaf<std::string>::parse(std::istream& is)
 {
-    return os << "{ "
-              << "color " << color << "; "
-              << "}";
-}
-
-std::istream& point_light::parse(std::istream& is)
-{
-    parse_charactor(is, '{');
-
-    std::string key;
-    while (is >> key)
-    {
-        if (key == "position")
-            is >> position;
-        else if (key == "color")
-            is >> color;
-        else if (key == "}")
-            break;
-        else
-            throw std::runtime_error("Invalid point_light key: " + key);
-        
-        parse_charactor(is, ';');
-    }
+    std::getline(is, value, '"');
+    std::getline(is, value, '"');
     return is;
 }
 
-std::ostream& point_light::print(std::ostream& os) const
+template <>
+std::ostream& leaf<std::string>::print(std::ostream& os) const
 {
-    return os << "{ "
-              << "position " << position << "; "
-              << "color "    << color    << "; "
-              << "}";
+    return os << '"' << value << '"';
 }
 
-std::istream& directional_light::parse(std::istream& is)
+template <>
+std::istream& leaf<float>::parse(std::istream& is)
 {
-    parse_charactor(is, '{');
+    return is >> value;
+}
 
-    std::string key;
-    while (is >> key)
-    {
-        if (key == "direction")
-            is >> direction;
-        else if (key == "color")
-            is >> color;
-        else if (key == "}")
-            break;
-        else
-            throw std::runtime_error("Invalid directional_light key: " + key);
-        
-        parse_charactor(is, ';');
-    }
+template <>
+std::ostream& leaf<float>::print(std::ostream& os) const
+{
+    return os <<  value;
+}
+
+template <>
+std::istream& leaf<Eigen::Vector3f>::parse(std::istream& is)
+{
+    parse_charactor(is, '(');
+    is >> value.x();
+    parse_charactor(is, ',');
+    is >> value.y();
+    parse_charactor(is, ',');
+    is >> value.z();
+    parse_charactor(is, ')');
     return is;
 }
 
-std::ostream& directional_light::print(std::ostream& os) const
+template <>
+std::ostream& leaf<Eigen::Vector3f>::print(std::ostream& os) const
 {
-    return os << "{ "
-              << "direction " << direction << "; "
-              << "color "     << color     << "; "
-              << "}";
+    return os << "(" << value.x() << ", " << value.y() << ", " << value.z() << ")";
 }
 
-std::istream& material::parse(std::istream& is)
+template <>
+std::istream& leaf<Eigen::Vector4f>::parse(std::istream& is)
 {
-    parse_charactor(is, '{');
-
-    std::string key;
-    while (is >> key)
-    {
-        if (key == "emissive")
-            is >> emissive;
-        else if (key == "ambient")
-            is >> ambient;
-        else if (key == "specular")
-            is >> specular;
-        else if (key == "reflective")
-            is >> reflective;
-        else if (key == "diffuse")
-            is >> diffuse;
-        else if (key == "transmissive")
-            is >> transmissive;
-        else if (key == "shininess")
-            is >> shininess;
-        else if (key == "index")
-            is >> index;
-        else if (key == "name")
-            parse_escaped_string(is, name);
-        else if (key == "}")
-            break;
-        else
-            throw std::runtime_error("Invalid material key: " + key);
-        
-        parse_charactor(is, ';');
-    }
-    return is;
+    parse_charactor(is, '(');
+    is >> value.x();
+    parse_charactor(is, ',');
+    is >> value.y();
+    parse_charactor(is, ',');
+    is >> value.z();
+    parse_charactor(is, ',');
+    is >> value.w();
+    parse_charactor(is, ')');
+    return is >> value.x() >> value.y() >> value.z();
 }
 
-std::ostream& material::print(std::ostream& os) const
+template <>
+std::ostream& leaf<Eigen::Vector4f>::print(std::ostream& os) const
 {
-    return os << "{ "
-              << "emissive "     << emissive     << "; "
-              << "ambient "      << ambient      << "; "
-              << "specular "     << specular     << "; "
-              << "reflective "   << reflective   << "; "
-              << "diffuse "      << diffuse      << "; "
-              << "transmissive " << transmissive << "; "
-              << "shininess "    << shininess    << "; "
-              << "index "        << index        << "; "
-              << "name "         << name         << "; "
-              << "}";
+    return os << "(" << value.x() << ", " << value.y() << ", " << value.z() << ", " << value.z() << ")";
+}
+
+std::unique_ptr<node> camera::make_child(const std::string& key) const
+{
+    if (key == "position" || key == "viewdir" || key == "updir")
+        return std::make_unique<leaf<Eigen::Vector3f>>();
+    if (key == "aspectratio")
+        return std::make_unique<leaf<float>>();
+    throw std::runtime_error("Invalid camera key: " + key);
+}
+
+std::unique_ptr<node> ambient_light::make_child(const std::string& key) const
+{
+    if (key == "color")
+        return std::make_unique<leaf<Eigen::Vector3f>>();
+    throw std::runtime_error("Invalid ambient_light key: " + key);
+}
+
+std::unique_ptr<node> point_light::make_child(const std::string& key) const
+{
+    if (key == "position" || key == "color")
+        return std::make_unique<leaf<Eigen::Vector3f>>();
+    throw std::runtime_error("Invalid point_light key: " + key);
+}
+
+std::unique_ptr<node> directional_light::make_child(const std::string& key) const
+{
+    if (key == "direction" || key == "color")
+        return std::make_unique<leaf<Eigen::Vector3f>>();
+    throw std::runtime_error("Invalid point_light key: " + key);
+}
+
+std::unique_ptr<node> material::make_child(const std::string& key) const
+{
+    if (key == "emissive" || key == "ambient" || key == "specular" || key == "reflective" || key == "diffuse" || key == "transmissive")
+        return std::make_unique<leaf<Eigen::Vector3f>>();
+    if (key == "shininess" || key == "index")
+        return std::make_unique<leaf<float>>();
+    if (key == "name")
+        return std::make_unique<leaf<std::string>>();
+    throw std::runtime_error("Invalid material key: " + key);
+}
+
+std::unique_ptr<node> polymesh::make_child(const std::string& key) const
+{
+    if (key == "objfile")
+        return std::make_unique<leaf<std::string>>();
+    throw std::runtime_error("Invalid material key: " + key);
 }
 
 }
 
 std::istream& operator>>(std::istream& is, dotraiser::node& n) { return n.parse(is); }
 std::ostream& operator<<(std::ostream& os, const dotraiser::node& n) { return n.print(os); }
-
-std::istream& operator>>(std::istream& is, Eigen::Vector3f& v)
-{
-    parse_charactor(is, '(');
-    is >> v.x();
-    parse_charactor(is, ',');
-    is >> v.y();
-    parse_charactor(is, ',');
-    is >> v.z();
-    parse_charactor(is, ')');
-    return is;
-}
