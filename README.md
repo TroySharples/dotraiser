@@ -10,20 +10,21 @@ We support a (hopefully sensible) subset of the .ray standard as specified [here
 
 Comments are not supported. For example
 
-```
+```obj
 point_light {
     position = (1,3,-2);
     // yellow light.
     colour = (1,1,0);
 }
 ```
+
 this is illegal.
 
 ### Semicolons are Required
 
 All lists enclosed in curley braces must end in a semicolon. For example:
 
-```
+```obj
 camera {
     position = (0,0,-4);
     viewdir = (0,0,1);
