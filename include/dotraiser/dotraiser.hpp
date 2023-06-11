@@ -4,6 +4,7 @@
 
 #include <filesystem>
 #include <unordered_map>
+#include <vector>
 #include <memory>
 #include <iostream>
 
@@ -100,7 +101,15 @@ struct material : branch
 
 struct object : branch
 {
-    material& get_material() { return static_cast<material&>(operator[]("material")); };
+    virtual ~object() = default;
+
+    material&        get_material()  { return static_cast<material&>             (operator[]("material")); };
+    Eigen::Vector3f& get_translate() { return static_cast<leaf<Eigen::Vector3f>&>(operator[]("translate")); };
+    Eigen::Vector3f& get_scale()     { return static_cast<leaf<Eigen::Vector3f>&>(operator[]("scale")); };
+    Eigen::Vector4f& get_rotate()    { return static_cast<leaf<Eigen::Vector4f>&>(operator[]("rotate")); };
+    Eigen::Matrix4f& get_transform() { return static_cast<leaf<Eigen::Matrix4f>&>(operator[]("transform")); };
+
+    virtual std::unique_ptr<node> make_child(const std::string& key) const override;
 };
 
 struct polymesh : object
@@ -108,6 +117,20 @@ struct polymesh : object
     std::string get_objfile() { return static_cast<leaf<std::string>&>(operator[]("objfile")); };
 
     virtual std::unique_ptr<node> make_child(const std::string& key) const override;
+};
+
+struct trunk : node
+{
+    virtual ~trunk() = default;
+    
+    std::istream& parse(std::istream& is) override;
+    std::ostream& print(std::ostream& os) const override;
+
+    std::unique_ptr<camera> cam;
+    std::vector<std::unique_ptr<ambient_light>> ambient_lights;
+    std::vector<std::unique_ptr<point_light>> point_lights;
+    std::vector<std::unique_ptr<directional_light>> directional_lights;
+    std::vector<std::unique_ptr<object>> objects;
 };
 
 }

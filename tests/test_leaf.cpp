@@ -80,7 +80,7 @@ TEST(TestNode, Material)
 TEST(TestNode, Polymesh)
 {
     std::stringstream ss(
-        " { material = { emissive = (1,1,1); diffuse = (1,1,1); transmissive = (0, 0, 1); shininess = 1.0; }; objfile = \"/path/to/object.obj\"; }"
+        "{ material = { emissive = (1,1,1); diffuse = (1,1,1); transmissive = (0, 0, 1); shininess = 1.0; }; objfile = \"/path/to/object.obj\"; }"
     );
 
     dotraiser::polymesh p;
@@ -91,6 +91,27 @@ TEST(TestNode, Polymesh)
     EXPECT_EQ(p.get_material().get_transmissive(), Eigen::Vector3f( 0, 0, 1 ))  << "Material transmissive should be (0,0,1)";
     EXPECT_EQ(p.get_material().get_shininess(),    1.0)                         << "Material shininess should be 1.0";
     EXPECT_EQ(p.get_objfile(),                     "/path/to/object.obj")    << "Path should be \"/path/to/object.obj\"";
+}
+
+TEST(TestTrunk, Full)
+{
+    std::stringstream ss(
+        "{"
+        "   camera = { position = (0,0,0); viewdir = (0,0,1); updir = (0,1,0); aspectratio = 1.0; };"
+        "   ambient_light = { color = (1,1,1); };"
+        "   point_light = { position = (0,0,0); color = (1,1,1); };"
+        "   directional_light = { direction = (0,0,0); color = (1,1,1); };"
+        "   polymesh = {"
+        "      material = { emissive = (1,1,1); ambient = (1,1,1); specular = (1,1,1); reflective = (1,0,1); diffuse = (1,1,1); transmissive = (0, 0, 1); shininess = 1.0; index = 0.5; name = \"gold\"; };"
+        "      translate = (0,0,0);"
+        "      scale = (1,1,1);"
+        "      objfile = \"/path/to/object.obj\";"
+        "   };"
+        "}"
+    );
+
+    dotraiser::trunk t;
+    ss >> t;
 }
 
 int main(int argc, char **argv)
