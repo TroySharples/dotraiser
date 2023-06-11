@@ -20,10 +20,9 @@ std::istream& branch::parse(std::istream& is)
     parse_charactor(is, '{');
 
     std::string key;
-    while (is >> key)
+    while (static_cast<char>((is >> std::ws).peek()) != '}')
     {
-        if (key == "}")
-            break;
+        is >> key;
         parse_charactor(is, '=');
 
         auto child = make_child(key);
@@ -32,6 +31,8 @@ std::istream& branch::parse(std::istream& is)
 
         parse_charactor(is, ';');
     }
+    parse_charactor(is, '}');
+
     return is;
 }
 
@@ -159,6 +160,8 @@ std::unique_ptr<node> material::make_child(const std::string& key) const
 
 std::unique_ptr<node> polymesh::make_child(const std::string& key) const
 {
+    if (key == "material")
+        return std::make_unique<material>();
     if (key == "objfile")
         return std::make_unique<leaf<std::string>>();
     throw std::runtime_error("Invalid material key: " + key);
